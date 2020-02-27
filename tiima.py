@@ -1,44 +1,45 @@
 #!/usr/bin/env python3
 
 import argparse
-import sys
-import requests
 import json
+import sys
+
+import requests
 from bs4 import BeautifulSoup
 
+API_URL = "https://www.tiima.com/rest/api/mobile"
+API_KEY = "ADD_API_KEY_HERE!!!"
+COMPANY = "ADD_COMPANY_ID_HERE"
 
-def stamp(user, password, company, action):
-    session = requests.Session()
-    response = session.get("https://www.tiima.com/Login")
-    cookies = session.cookies
-    soup = BeautifulSoup(response.text, "html.parser")
-    rvt = soup.find("input", {"name": "__RequestVerificationToken"})["value"]
-    data = {
-        "__RequestVerificationToken": rvt,
-        "UserName": user,
-        "Password": password,
-        "CustomerIdentifier": company,
+
+def login(user, password):
+    json = {
+        "username": user,
+        "password": password,
+        "clientVersion": "0.1",
+        "deviceType": "Android",
+        "deviceDescription": "Oneplus 3T",
     }
-    x = session.post("https://www.tiima.com/Login", data=data)
-    soup = BeautifulSoup(x.text, "html.parser")
-    form = soup.find("form", {"name": "tiima"})
-    fields = form.findAll("input")
-    formdata = dict((field.get("name"), field.get("value")) for field in fields)
-    formdata["AjaxRequest"] = 1
-    formdata["FieldAction"] = action
-    formdata["StampReasonCodeId"] = 1
-    response = session.post(
-        "https://www.tiima.com/Tiima/workhours/work_time_stamp.asp", data=formdata
-    )
+    resp = requests.post(API_URL + "/user/login", json=json, auth=(COMPANY, API_KEY))
+    return resp.json()
 
-    soup = BeautifulSoup(response.text, "html.parser")
-    table = soup.findAll("table")[1].findAll("table")[6]
-    rows = table.findAll("tr")
-    del rows[0:2]
-    for row in rows:
-        cols = row.findAll("td")
-        cols = [ele.get_text().strip() for ele in cols]
-        print(" ".join([ele for ele in cols if ele]))
+
+def action_check_in(token):
+    headers = {"X-Tiima-Token": token, "X-Tiima-Language": "fi"}
+    json = {"reasonCode": 1}
+    resp = requests.post(
+        API_URL + "/user/enter", json=json, auth=(COMPANY, API_KEY), headers=headers
+    )
+    print(resp.json())
+
+
+def action_check_out(token):
+    headers = {"X-Tiima-Token": token, "X-Tiima-Language": "fi"}
+    json = {"reasonCode": 1}
+    resp = requests.post(
+        API_URL + "/user/leave", json=json, auth=(COMPANY, API_KEY), headers=headers
+    )
+    print(resp.json())
 
 
 def main(argv):
@@ -46,7 +47,6 @@ def main(argv):
     parser.add_argument(dest="action", choices=["in", "out"], help="Action")
     parser.add_argument("-u", "--user", required=True)
     parser.add_argument("-p", "--password", required=True)
-    parser.add_argument("-c", "--company", required=True)
 
     args = parser.parse_args()
     actions = {
@@ -55,7 +55,8 @@ def main(argv):
         # Add other actions
     }
 
-    stamp(args.user, args.password, args.company, actions.get(args.action))
+    user = login(args.user, args.password)
+    globals()[actions.get(args.action)](user.get("token"))
 
 
 if __name__ == "__main__":
