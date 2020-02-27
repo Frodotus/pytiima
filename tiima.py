@@ -24,27 +24,41 @@ def login(user, password):
     return resp.json()
 
 
-def action_check_in(token):
+def stamp(token, url, json):
     headers = {"X-Tiima-Token": token, "X-Tiima-Language": "fi"}
-    json = {"reasonCode": 1}
     resp = requests.post(
-        API_URL + "/user/enter", json=json, auth=(COMPANY, API_KEY), headers=headers
+        API_URL + url, json=json, auth=(COMPANY, API_KEY), headers=headers
     )
-    print(resp.json())
+    return resp.json()
+
+
+def action_check_in(token):
+    json = {"reasonCode": 1}
+    resp = stamp(token, "/user/enter", json)
+    print(resp)
 
 
 def action_check_out(token):
-    headers = {"X-Tiima-Token": token, "X-Tiima-Language": "fi"}
     json = {"reasonCode": 1}
-    resp = requests.post(
-        API_URL + "/user/leave", json=json, auth=(COMPANY, API_KEY), headers=headers
-    )
-    print(resp.json())
+    resp = stamp(token, "/user/leave", json)
+    print(resp)
+
+
+def action_to_lunch(token):
+    resp = stamp(token, "/user/toLunch", {})
+    print(resp)
+
+
+def action_from_lunch(token):
+    resp = stamp(token, "/user/fromLunch", {})
+    print(resp)
 
 
 def main(argv):
     parser = argparse.ArgumentParser()
-    parser.add_argument(dest="action", choices=["in", "out"], help="Action")
+    parser.add_argument(
+        dest="action", choices=["in", "out", "lunch", "back"], help="Action"
+    )
     parser.add_argument("-u", "--user", required=True)
     parser.add_argument("-p", "--password", required=True)
 
@@ -52,6 +66,8 @@ def main(argv):
     actions = {
         "in": "action_check_in",
         "out": "action_check_out",
+        "lunch": "action_to_lunch",
+        "back": "action_from_lunch",
         # Add other actions
     }
 
